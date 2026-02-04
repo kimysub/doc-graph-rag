@@ -1,0 +1,55 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "document-agent"
+version = "0.1.0"
+description = "A document agent that parses various document formats and builds a Graph RAG knowledge base for Q&A"
+authors = ["Document Agent Team"]
+readme = "README.md"
+packages = [{include = "document_agent", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+# Document parsing
+markitdown = {version = "^0.1", extras = ["all"]}
+pymupdf = "^1.24"
+httpx = "^0.27"
+# Graph RAG
+kuzu = "^0.4"
+chromadb = "^0.4"
+# LLM
+openai = "^1.0"
+tiktoken = "^0.7"
+# Interface
+typer = {version = "^0.12", extras = ["all"]}
+fastapi = "^0.111"
+uvicorn = {version = "^0.30", extras = ["standard"]}
+pydantic = "^2.0"
+pydantic-settings = "^2.0"
+python-multipart = "^0.0.9"
+# Utilities
+python-dotenv = "^1.0"
+rich = "^13.0"
+aiofiles = "^23.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-asyncio = "^0.23"
+ruff = "^0.4"
+
+[tool.poetry.scripts]
+docagent = "document_agent.cli:app"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

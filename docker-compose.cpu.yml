@@ -1,0 +1,46 @@
+# Docker Compose for CPU-only environment (without GLM-OCR)
+# Use this if you don't have a GPU or want to use external OCR service
+
+version: "3.8"
+
+services:
+  # Document Agent API Server
+  document-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: document-agent
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist data directories
+      - ./data:/app/data
+      # Mount documents for indexing (optional)
+      - ./documents:/app/documents:ro
+    environment:
+      # LLM Settings
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      # Vision LLM Settings
+      - VISION_LLM_MODEL=${VISION_LLM_MODEL:-gpt-4o}
+      # Embedding Settings
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      # GLM-OCR Settings (use external service or disable)
+      - GLM_OCR_BASE_URL=${GLM_OCR_BASE_URL:-http://localhost:8080/v1}
+      # Data paths
+      - DATA_DIR=/app/data
+      - KUZU_DB_PATH=/app/data/kuzu_db
+      - CHROMA_DB_PATH=/app/data/chroma_db
+      - IMAGES_PATH=/app/data/images
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  default:
+    name: document-agent-network

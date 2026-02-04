@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  # Document Agent API Server
+  document-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: document-agent
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist data directories
+      - ./data:/app/data
+      # Mount documents for indexing (optional)
+      - ./documents:/app/documents:ro
+    environment:
+      # LLM Settings
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      # Vision LLM Settings
+      - VISION_LLM_MODEL=${VISION_LLM_MODEL:-gpt-4o}
+      # Embedding Settings
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      # GLM-OCR Settings (connect to glm-ocr service)
+      - GLM_OCR_BASE_URL=${GLM_OCR_BASE_URL:-http://glm-ocr:8080/v1}
+      # Data paths
+      - DATA_DIR=/app/data
+      - KUZU_DB_PATH=/app/data/kuzu_db
+      - CHROMA_DB_PATH=/app/data/chroma_db
+      - IMAGES_PATH=/app/data/images
+    depends_on:
+      - glm-ocr
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # GLM-OCR Server (vLLM)
+  # Note: Requires GPU support. Comment out if not using PDF OCR.
+  glm-ocr:
+    image: vllm/vllm-openai:latest
+    container_name: glm-ocr
+    ports:
+      - "8080:8080"
+    volumes:
+      # Cache HuggingFace models
+      - huggingface-cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    command: >
+      --model zai-org/GLM-OCR
+      --port 8080
+      --trust-remote-code
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    # Uncomment below if you don't have GPU
+    # profiles:
+    #   - gpu
+
+volumes:
+  huggingface-cache:
+    driver: local
+
+networks:
+  default:
+    name: document-agent-network
