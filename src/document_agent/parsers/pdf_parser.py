@@ -1,45 +1,59 @@
-"""PDF parser using GLM-OCR API."""
+"""PDF parser with pluggable OCR providers."""
 
-import base64
-import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import fitz  # PyMuPDF
-from openai import OpenAI
 
 from document_agent.config import settings
 
 from .base import BaseParser, ImageInfo, ParsedDocument
+from .ocr import BaseOCR, get_ocr_provider
 
 
 class PDFParser(BaseParser):
-    """Parser for PDF files using GLM-OCR API."""
+    """Parser for PDF files with pluggable OCR support.
+
+    Supports multiple OCR providers:
+    - glm: GLM-OCR (requires external API server)
+    - tesseract: Tesseract OCR (local, open-source)
+    - vision_llm: Vision LLM (GPT-4V, Claude Vision, etc.)
+    - gpt4v: GPT-4 Vision
+    - claude: Claude Vision
+    """
 
     supported_extensions = [".pdf"]
 
     def __init__(
         self,
-        glm_ocr_base_url: Optional[str] = None,
+        ocr_provider: Optional[Union[str, BaseOCR]] = None,
         images_path: Optional[Path] = None,
+        **ocr_kwargs,
     ):
         """Initialize the PDF parser.
 
         Args:
-            glm_ocr_base_url: Base URL for GLM-OCR API server.
+            ocr_provider: OCR provider name or instance.
+                         Options: 'glm', 'tesseract', 'vision_llm', 'gpt4v', 'claude'
+                         Default: settings.ocr_provider
             images_path: Directory to save extracted images.
+            **ocr_kwargs: Additional arguments passed to OCR provider.
         """
-        self.glm_ocr_base_url = glm_ocr_base_url or settings.glm_ocr_base_url
         self.images_path = Path(images_path or settings.images_path)
 
-        # Initialize GLM-OCR client
-        self.glm_client = OpenAI(
-            base_url=self.glm_ocr_base_url,
-            api_key="dummy",  # GLM-OCR doesn't require a real API key
-        )
+        # Initialize OCR provider
+        if ocr_provider is None:
+            ocr_provider = settings.ocr_provider
+
+        if isinstance(ocr_provider, str):
+            self.ocr = get_ocr_provider(ocr_provider, **ocr_kwargs)
+        elif isinstance(ocr_provider, BaseOCR):
+            self.ocr = ocr_provider
+        else:
+            raise ValueError(f"Invalid ocr_provider type: {type(ocr_provider)}")
 
     def parse(self, file_path: str | Path) -> ParsedDocument:
-        """Parse a PDF file using GLM-OCR.
+        """Parse a PDF file using the configured OCR provider.
 
         Args:
             file_path: Path to the PDF file.
@@ -66,9 +80,9 @@ class PDFParser(BaseParser):
             image_path = doc_images_dir / f"page_{page_num + 1}.png"
             pix.save(str(image_path))
 
-            # Use GLM-OCR to extract text
-            page_text = self._ocr_page(image_path)
-            pages_content.append(page_text)
+            # Use OCR provider to extract text
+            ocr_result = self.ocr.process_image(image_path)
+            pages_content.append(ocr_result.text)
 
             # Extract embedded images from the page
             page_images = self._extract_page_images(page, page_num, doc_id, doc_images_dir)
@@ -91,48 +105,9 @@ class PDFParser(BaseParser):
             images=images,
             metadata={
                 "page_count": len(pages_content),
+                "ocr_provider": self.ocr.name,
             },
         )
-
-    def _ocr_page(self, image_path: Path) -> str:
-        """Use GLM-OCR to extract text from a page image.
-
-        Args:
-            image_path: Path to the page image.
-
-        Returns:
-            Extracted text from the page.
-        """
-        # Read and encode the image
-        with open(image_path, "rb") as f:
-            image_data = base64.b64encode(f.read()).decode("utf-8")
-
-        try:
-            response = self.glm_client.chat.completions.create(
-                model="glm-ocr",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{image_data}",
-                                },
-                            },
-                            {
-                                "type": "text",
-                                "text": "Text Recognition:",
-                            },
-                        ],
-                    }
-                ],
-                max_tokens=8192,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            # Fallback: try to extract text with PyMuPDF if GLM-OCR fails
-            return f"[OCR Error: {str(e)}]"
 
     def _extract_page_images(
         self,

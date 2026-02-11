@@ -1,7 +1,7 @@
 """Configuration management for Document Agent."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,10 +16,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # GLM-OCR Settings (PDF OCR)
+    # OCR Settings (PDF OCR)
+    ocr_provider: str = Field(
+        default="glm",
+        description="OCR provider: 'glm', 'tesseract', 'vision_llm', 'gpt4v', 'claude'",
+    )
     glm_ocr_base_url: str = Field(
         default="http://localhost:8080/v1",
         description="Base URL for GLM-OCR API server",
+    )
+    tesseract_lang: str = Field(
+        default="eng+kor",
+        description="Tesseract OCR language(s)",
     )
 
     # LLM Settings (Q&A + Entity Extraction)

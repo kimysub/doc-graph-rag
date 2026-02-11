@@ -23,8 +23,10 @@ services:
       - VISION_LLM_MODEL=${VISION_LLM_MODEL:-gpt-4o}
       # Embedding Settings
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      # GLM-OCR Settings (connect to glm-ocr service)
+      # OCR Settings (glm, tesseract, vision_llm, gpt4v, claude)
+      - OCR_PROVIDER=${OCR_PROVIDER:-glm}
       - GLM_OCR_BASE_URL=${GLM_OCR_BASE_URL:-http://glm-ocr:8080/v1}
+      - TESSERACT_LANG=${TESSERACT_LANG:-eng+kor}
       # Data paths
       - DATA_DIR=/app/data
       - KUZU_DB_PATH=/app/data/kuzu_db

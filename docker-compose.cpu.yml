@@ -1,5 +1,5 @@
 # Docker Compose for CPU-only environment (without GLM-OCR)
-# Use this if you don't have a GPU or want to use external OCR service
+# Use this if you don't have a GPU or want to use alternative OCR providers
 
 version: "3.8"
 
@@ -26,8 +26,11 @@ services:
       - VISION_LLM_MODEL=${VISION_LLM_MODEL:-gpt-4o}
       # Embedding Settings
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      # GLM-OCR Settings (use external service or disable)
+      # OCR Settings - use vision_llm or tesseract for CPU-only
+      # Options: glm, tesseract, vision_llm, gpt4v, claude
+      - OCR_PROVIDER=${OCR_PROVIDER:-vision_llm}
       - GLM_OCR_BASE_URL=${GLM_OCR_BASE_URL:-http://localhost:8080/v1}
+      - TESSERACT_LANG=${TESSERACT_LANG:-eng+kor}
       # Data paths
       - DATA_DIR=/app/data
       - KUZU_DB_PATH=/app/data/kuzu_db

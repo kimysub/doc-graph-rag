@@ -5,7 +5,7 @@ A Graph RAG based document Q&A system that parses various document formats and b
 ## Features
 
 - **Multi-format Document Parsing**
-  - PDF: GLM-OCR (외부 API 서버)
+  - PDF: Pluggable OCR providers (GLM-OCR, Tesseract, Vision LLM)
   - DOCX, PPTX, XLSX: Microsoft MarkItDown
   - MD, TXT: Native parsing
 
@@ -43,9 +43,19 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
-## GLM-OCR Server Setup
+## OCR Providers
 
-For PDF parsing, you need to run GLM-OCR as an API server:
+Document Agent supports multiple OCR providers for PDF text extraction. Configure via `OCR_PROVIDER` environment variable.
+
+| Provider | Description | Requirements |
+|----------|-------------|--------------|
+| `glm` | GLM-OCR (recommended for quality) | GPU + vLLM/SGLang server |
+| `tesseract` | Tesseract OCR (open-source, local) | `tesseract` system package |
+| `vision_llm` | Vision LLM (GPT-4V, Claude) | OpenAI/Anthropic API key |
+| `gpt4v` | GPT-4 Vision | OpenAI API key |
+| `claude` | Claude Vision | Anthropic API key |
+
+### GLM-OCR Setup (GPU)
 
 ```bash
 # Option 1: vLLM (recommended)
@@ -58,6 +68,29 @@ python -m sglang.launch_server --model zai-org/GLM-OCR --port 8080
 
 # Option 3: Ollama
 ollama run glm-ocr
+```
+
+### Tesseract Setup (CPU)
+
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt install tesseract-ocr tesseract-ocr-kor
+
+# Install Python binding
+pip install pytesseract
+```
+
+### Vision LLM (Cloud API)
+
+No additional setup required. Uses your configured LLM API.
+
+```bash
+# .env
+OCR_PROVIDER=vision_llm
+LLM_API_KEY=sk-xxx
 ```
 
 ## Usage
